@@ -3,18 +3,17 @@
     CUSTOMIZABLE PARTS ARE MARKED WITH [CUSTOM]
     
     How to customize:
-    1. Replace "My Script Name" with your name
-    2. Change the theme color in GUI Library
+    1. Replace "Wave" with your name
+    2. Change the theme color
     3. Default settings can be changed
 --]]
 
 -- [CUSTOM] =================================
-local SCRIPT_NAME = "Jeyk" -- << CHANGE THIS
+local SCRIPT_NAME = "Wave" -- << CHANGE THIS
 local THEME = "BloodTheme" -- Options: DarkTheme, LightTheme, GrapeTheme, BloodTheme
 local SHOW_SPLASH = true -- Show logo/credits
 -- ==========================================
 
-loadstring([[
 -- Service initialization
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -63,44 +62,38 @@ local Window = Library.CreateLib(SCRIPT_NAME, THEME)
 -- DYNAMIC ITEM LISTS (populated from inventory)
 -- ==============================================
 local DynamicItems = {
-    Saplings = {},    -- Items ending with _sapling
-    Blocks = {},      -- Items that are blocks/tiles
-    AllItems = {}     -- All items in inventory
+    Saplings = {},
+    Blocks = {},
+    AllItems = {}
 }
 
 -- Function to refresh items from inventory
 local function RefreshInventoryItems()
-    -- Clear lists
     DynamicItems.Saplings = {}
     DynamicItems.Blocks = {}
     DynamicItems.AllItems = {}
-    
-    -- Scan all stacks in inventory
+
     for slot, stack in pairs(Inventory.Stacks) do
         if stack and stack.Id then
             local itemId = stack.Id
             local itemName = tostring(itemId)
-            
-            -- Add to AllItems
+
             table.insert(DynamicItems.AllItems, itemName)
-            
-            -- Check if this is a sapling (ends with _sapling)
+
             if string.sub(itemName, -8) == "_sapling" then
                 table.insert(DynamicItems.Saplings, itemName)
             end
-            
-            -- Check if this is a block (try requesting item data)
+
             local success, itemData = pcall(function()
                 return ItemsManager.RequestItemData(itemId)
             end)
-            
+
             if success and itemData and itemData.Tile then
                 table.insert(DynamicItems.Blocks, itemName)
             end
         end
     end
-    
-    -- Remove duplicates
+
     local function unique(tbl)
         local seen = {}
         local result = {}
@@ -112,51 +105,42 @@ local function RefreshInventoryItems()
         end
         return result
     end
-    
+
     DynamicItems.Saplings = unique(DynamicItems.Saplings)
     DynamicItems.Blocks = unique(DynamicItems.Blocks)
     DynamicItems.AllItems = unique(DynamicItems.AllItems)
-    
-    -- Sort for cleaner output
+
     table.sort(DynamicItems.Saplings)
     table.sort(DynamicItems.Blocks)
     table.sort(DynamicItems.AllItems)
-    
+
     print("[✓] Inventory refreshed - " .. #DynamicItems.AllItems .. " items found")
     print("    Saplings: " .. #DynamicItems.Saplings)
     print("    Blocks: " .. #DynamicItems.Blocks)
-    
+
     return DynamicItems
 end
 
 -- Settings table
 local Settings = {
-    -- Auto farm
     AutoPlant = false,
     AutoHarvest = false,
     AutoBreak = false,
     OneHitMode = false,
     TractorMode = false,
-    
-    -- Item selection (NONE default)
+
     SelectedSapling = "NONE",
     SelectedBlock = "NONE",
     SelectedTile = "NONE",
-    
-    -- Intervals
+
     PlantInterval = 0.01,
     HarvestInterval = 0.01,
     BreakInterval = 0.01,
     PlaceInterval = 0.15,
-    
-    -- Range
+
     Radius = 5,
-    
-    -- Player
     Speed = 16,
     JumpPower = 50,
-    
-    -- Gems
     TargetGems = 999999,
 }
 
@@ -177,23 +161,20 @@ end
 local FarmingTab = Window:NewTab("Farming")
 local FarmingSection = FarmingTab:NewSection("Auto Farm Controls")
 
--- Refresh button
 FarmingSection:NewButton("🔄 Refresh Backpack", "Load items from inventory", function()
     local items = RefreshInventoryItems()
-    
-    -- Update dropdowns with new items
+
     if #items.Saplings > 0 then
         FarmingTab:UpdateDropdown("Select Sapling", items.Saplings)
     end
-    
+
     if #items.Blocks > 0 then
         FarmingTab:UpdateDropdown("Select Block", items.Blocks)
     end
-    
+
     FarmingTab:UpdateDropdown("Select Tile", items.AllItems)
 end)
 
--- Dropdowns (will be updated after refresh)
 FarmingSection:NewDropdown("Select Sapling", "Choose a sapling (Refresh first)", {"NONE"}, function(value)
     Settings.SelectedSapling = value
     print("[✓] Selected sapling: " .. value)
@@ -209,7 +190,6 @@ FarmingSection:NewDropdown("Select Tile", "Choose a tile (Refresh first)", {"NON
     print("[✓] Selected tile: " .. value)
 end)
 
--- Farming toggles
 FarmingSection:NewToggle("Auto Plant", "Automatically plant saplings", function(state)
     if state and Settings.SelectedSapling == "NONE" then
         print("[!] Select a sapling first!")
@@ -242,7 +222,6 @@ FarmingSection:NewToggle("Tractor Mode", "Wide area mode", function(state)
     Settings.Radius = state and 10 or 5
 end)
 
--- Sliders
 FarmingSection:NewSlider("Plant Interval (ms)", "Plant delay", 100, 1, function(value)
     Settings.PlantInterval = value / 1000
 end)
@@ -275,7 +254,6 @@ PlayerSection:NewSlider("JumpPower", "Jump height", 500, 50, function(value)
     if Humanoid then Humanoid.JumpPower = value end
 end)
 
--- Fly
 PlayerSection:NewToggle("Fly", "Enable flight", function(state)
     local bodyGyro, bodyVelocity
     if state then
@@ -283,20 +261,21 @@ PlayerSection:NewToggle("Fly", "Enable flight", function(state)
         bodyGyro.P = 9e4
         bodyGyro.maxTorque = Vector3.new(9e4, 9e4, 9e4)
         bodyGyro.Parent = Character.HumanoidRootPart
-        
+
         bodyVelocity = Instance.new("BodyVelocity")
         bodyVelocity.maxForce = Vector3.new(9e4, 9e4, 9e4)
         bodyVelocity.Parent = Character.HumanoidRootPart
-        
+
         RunService.Heartbeat:Connect(function()
             if state then
                 bodyGyro.cframe = Camera.CFrame
-                bodyVelocity.velocity = Camera.CFrame.lookVector * (UserInputService:IsKeyDown(Enum.KeyCode.W) and 50 or 0) +
-                                      -Camera.CFrame.lookVector * (UserInputService:IsKeyDown(Enum.KeyCode.S) and 50 or 0) +
-                                      Camera.CFrame.rightVector * (UserInputService:IsKeyDown(Enum.KeyCode.D) and 50 or 0) +
-                                      -Camera.CFrame.rightVector * (UserInputService:IsKeyDown(Enum.KeyCode.A) and 50 or 0) +
-                                      Vector3.new(0, UserInputService:IsKeyDown(Enum.KeyCode.Space) and 50 or 0, 0) +
-                                      Vector3.new(0, UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) and -50 or 0, 0)
+                bodyVelocity.velocity =
+                    Camera.CFrame.lookVector * (UserInputService:IsKeyDown(Enum.KeyCode.W) and 50 or 0) +
+                    -Camera.CFrame.lookVector * (UserInputService:IsKeyDown(Enum.KeyCode.S) and 50 or 0) +
+                    Camera.CFrame.rightVector * (UserInputService:IsKeyDown(Enum.KeyCode.D) and 50 or 0) +
+                    -Camera.CFrame.rightVector * (UserInputService:IsKeyDown(Enum.KeyCode.A) and 50 or 0) +
+                    Vector3.new(0, UserInputService:IsKeyDown(Enum.KeyCode.Space) and 50 or 0, 0) +
+                    Vector3.new(0, UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) and -50 or 0, 0)
             end
         end)
     else
@@ -305,7 +284,6 @@ PlayerSection:NewToggle("Fly", "Enable flight", function(state)
     end
 end)
 
--- Teleport
 PlayerSection:NewButton("Teleport to Mouse", "Move to cursor position", function()
     if Mouse.Hit then
         Character.HumanoidRootPart.CFrame = CFrame.new(Mouse.Hit.p + Vector3.new(0, 3, 0))
@@ -353,7 +331,7 @@ WorldSection:NewButton("Place Selected Tile", "Place tile (select one first)", f
         print("[!] Select a tile first!")
         return
     end
-    
+
     if Mouse.Hit then
         local pos = Mouse.Hit.p
         local gridX = math.floor(pos.X / 4.5 + 0.5)
@@ -387,11 +365,11 @@ ESPSection:NewButton("Scan Saplings", "Highlight nearby saplings", function()
         for y = -30, 30 do
             local gridX = math.floor((pos.X / 4.5 + 0.5) + x)
             local gridY = math.floor((pos.Y / 4.5 + 0.5) + y)
-            
+
             local success, tile = pcall(function()
                 return RemotesList.RequestWorldTiles:InvokeServer(gridX, gridY)
             end)
-            
+
             if success and tile and string.sub(tostring(tile), -8) == "_sapling" then
                 local part = Instance.new("Part")
                 part.Size = Vector3.new(4, 4, 4)
@@ -402,7 +380,7 @@ ESPSection:NewButton("Scan Saplings", "Highlight nearby saplings", function()
                 part.BrickColor = BrickColor.new("Bright green")
                 part.Material = Enum.Material.Neon
                 part.Parent = workspace
-                
+
                 game:GetService("Debris"):AddItem(part, 5)
             end
         end
@@ -415,22 +393,21 @@ end)
 -- ==============================================
 spawn(function()
     while task.wait(0.05) do
-        -- Update character reference
         if not Character or not Character:FindFirstChild("HumanoidRootPart") then
             Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
             Humanoid = Character:WaitForChild("Humanoid")
         end
-        
+
         local rootPos = Character.HumanoidRootPart.Position
         local playerGridX = math.floor(rootPos.X / 4.5 + 0.5)
         local playerGridY = math.floor(rootPos.Y / 4.5 + 0.5)
-        
+
         -- Auto Plant (only if a sapling is selected)
         if Settings.AutoPlant and Settings.SelectedSapling ~= "NONE" and Mouse.Hit then
             local mousePos = Mouse.Hit.p
             local gridX = math.floor(mousePos.X / 4.5 + 0.5)
             local gridY = math.floor(mousePos.Y / 4.5 + 0.5)
-            
+
             if math.abs(gridX - playerGridX) <= 2 and math.abs(gridY - playerGridY) <= 2 then
                 pcall(function()
                     RemotesList.WorldSetTile:FireServer(gridX, gridY, Settings.SelectedSapling, {})
@@ -439,18 +416,18 @@ spawn(function()
                 task.wait(Settings.PlantInterval)
             end
         end
-        
+
         -- Auto Harvest/Break
         if Settings.AutoHarvest or (Settings.AutoBreak and Settings.SelectedBlock ~= "NONE") then
             for x = -Settings.Radius, Settings.Radius do
                 for y = -Settings.Radius, Settings.Radius do
                     local targetX = playerGridX + x
                     local targetY = playerGridY + y
-                    
+
                     local success, tileInfo = pcall(function()
                         return RemotesList.RequestWorldTiles:InvokeServer(targetX, targetY)
                     end)
-                    
+
                     if success and tileInfo then
                         -- Auto Harvest (all saplings)
                         if Settings.AutoHarvest and string.sub(tostring(tileInfo), -8) == "_sapling" then
@@ -460,7 +437,7 @@ spawn(function()
                             end)
                             task.wait(Settings.HarvestInterval)
                         end
-                        
+
                         -- Auto Break (only selected block)
                         if Settings.AutoBreak and Settings.SelectedBlock ~= "NONE" and tostring(tileInfo) == Settings.SelectedBlock then
                             pcall(function()
@@ -472,7 +449,7 @@ spawn(function()
                 end
             end
         end
-        
+
         -- Update speed/jump each tick
         if Humanoid then
             Humanoid.WalkSpeed = Settings.Speed
@@ -481,10 +458,9 @@ spawn(function()
     end
 end)
 
--- Auto refresh on first load (optional)
+-- Auto refresh on first load
 task.wait(1)
 RefreshInventoryItems()
 
 print("[" .. SCRIPT_NAME .. "] Loaded successfully!")
 print("[✓] Click 'Refresh Backpack' to load items from inventory")
-]])()
